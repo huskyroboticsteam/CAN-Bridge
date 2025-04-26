@@ -37,6 +37,8 @@ char txData[TX_DATA_SIZE];
 CANPacket can_recieve;
 CANPacket can_send;
 uint8 address = 0;
+
+// from CAN packet
 char8 uart_tx[64];
 char8 uart_rx[64];
 CANPacket can_tx;
@@ -44,14 +46,13 @@ CANPacket can_rx;
 
 uint8 uart_rx_len = 0;
 
-
 CY_ISR(Period_Reset_Handler) {
     CAN_time_LED++;
     ERROR_time_LED++;
     
-    /*if (ERROR_time_LED >= 3) {
+    if (ERROR_time_LED >= 3) {
         LED_ERR_Write(OFF);
-    }*/
+    }
     if (CAN_time_LED >= 3) {
         LED_CAN_Write(OFF);
     }
@@ -118,15 +119,84 @@ void sprintCANPacket(CANPacket* packet, char* buffer) {
     sprintf(buffer+len,"\r\n");
 }
 
+void DebugPrint(char input) {
+    switch(input) {
+        case 'f':
+            sprintf(txData, "Mode: %x State:%x \r\n", GetMode(), GetState());
+            break;
+        case 'x':
+            sprintf(txData, "bruh\r\n");
+            break;
+        default:
+            sprintf(txData, "what\r\n");
+            break;
+    }
+    Print(txData);
+}
+
+void DisplayErrorCode(uint8_t code) {    
+    ERROR_time_LED = 0;
+    LED_ERR_Write(ON);
+    // LED_DBG_1_Write(ON);
+    
+    sprintf(txData, "Error %X\r\n", code);
+    Print(txData);
+
+    switch(code)
+    {
+        case ERROR_INVALID_TTC:
+            Print("Cannot Send That Data Type!\n\r");
+            break;
+        default:
+            //some error
+            break;
+    }
+}
+
+// remove a occurrences of serial address, since not mentioned on the board
+void Initialize(void) {
+    CyGlobalIntEnable; /* Enable global interrupts. LED arrays need this first */
+    
+    // address = getSerialAddress();
+    CAN_Start();
+    CAN_1_Start();
+    
+    DBG_UART_Start();
+    DBG_UART_1_Start();
+ 
+    Print(txData);
+    
+    // LED_DBG_Write(0);
+    
+    // InitCAN(0x4, (int)address);
+    // InitCAN();
+    
+    Timer_Period_Reset_Start();
+    isr_Period_Reset_StartEx(Period_Reset_Handler);
+}
+
 
 int main(void)
 { 
     // intialize the two CAN blocks here
+    /*for (int i = 0; i < 10000; i++) {
+        LED_CAN_Write(0);
+        CyDelay(100);
+        LED_CAN_Write(1);
+    }*/
+   
     Initialize();
-    
+    // toggle for debugging
+
     // int err;
-    
     // we can read CAN packets and pass it into uart first
+    Print("format:\r\n");
+    Print("X XX XX  XX XX XX XX XX XX XX XX\r\n");
+    Print("p |  |   |  |  |  |  |  |  |  |\r\n");
+    Print("  dg |   |  |  |  |  |  |  |  |\r\n");
+    Print("     sn  |  |  |  |  |  |  |  |\r\n");
+    Print("         0  1  2  3  4  5  6  7 (data)\r\n");
+    
     for(;;)
     {   
         if (CAN_time_LED > 0) {
@@ -161,62 +231,4 @@ int main(void)
         CyDelay(100);
     }
 }
-
-void Initialize(void) {
-    CyGlobalIntEnable; /* Enable global interrupts. LED arrays need this first */
-    
-    // address = getSerialAddress();
-    // CAN_Start();
-    // CAN_1_Start();
-
-    // DBG_UART_Start();
-    //  DBG_UART_1_Start();
- 
-    // sprintf(txData, "Dip Addr: %x \r\n", address);
-    printf("starting program \n");
-    Print(txData);
-    
-    // make these LED
-    
-    LED_DBG_Write(0);
-    
-    InitCAN(0x4, (int)address);
-    Timer_Period_Reset_Start();
-    isr_Period_Reset_StartEx(Period_Reset_Handler);
-}
-
-void DebugPrint(char input) {
-    switch(input) {
-        case 'f':
-            sprintf(txData, "Mode: %x State:%x \r\n", GetMode(), GetState());
-            break;
-        case 'x':
-            sprintf(txData, "bruh\r\n");
-            break;
-        default:
-            sprintf(txData, "what\r\n");
-            break;
-    }
-    Print(txData);
-}
-
-void DisplayErrorCode(uint8_t code) {    
-    ERROR_time_LED = 0;
-    // LED_ERR_Write(ON);
-    // LED_DBG_1_Write(ON);
-    
-    sprintf(txData, "Error %X\r\n", code);
-    Print(txData);
-
-    switch(code)
-    {
-        case ERROR_INVALID_TTC:
-            Print("Cannot Send That Data Type!\n\r");
-            break;
-        default:
-            //some error
-            break;
-    }
-}
-
 /* [] END OF FILE */
