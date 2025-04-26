@@ -29,14 +29,15 @@
 // LED stuff
 volatile uint8_t CAN_time_LED = 0;
 volatile uint8_t ERROR_time_LED = 0;
+uint8 uart_rx_len = 0;
 
 // UART stuff
 char txData[TX_DATA_SIZE];
 
 // CAN stuff
-CANPacket can_recieve;
-CANPacket can_send;
-uint8 address = 0;
+//CANPacket can_recieve;
+// CANPacket can_send;
+// uint8 address = 0;
 
 // from CAN packet
 char8 uart_tx[64];
@@ -44,18 +45,18 @@ char8 uart_rx[64];
 CANPacket can_tx;
 CANPacket can_rx;
 
-uint8 uart_rx_len = 0;
+
 
 CY_ISR(Period_Reset_Handler) {
     CAN_time_LED++;
     ERROR_time_LED++;
     
-    if (ERROR_time_LED >= 3) {
+    /*if (ERROR_time_LED >= 3) {
         LED_ERR_Write(OFF);
     }
     if (CAN_time_LED >= 3) {
         LED_CAN_Write(OFF);
-    }
+    }*/
 }
 
 /*
@@ -96,7 +97,7 @@ void parseLine(CANPacket* p, char8 line[], int length) {
     p->dlc = i;
 }
 
-uint32_t decodeFromBytes(int msb_index, int lsb_index, uint8_t data[]) {
+/*uint32_t decodeFromBytes(int msb_index, int lsb_index, uint8_t data[]) {
     uint32_t result = 0;
     if (msb_index < lsb_index)
         for (int i = msb_index; i <= lsb_index; i++)
@@ -105,13 +106,13 @@ uint32_t decodeFromBytes(int msb_index, int lsb_index, uint8_t data[]) {
         for (int i = msb_index; i >= lsb_index; i--)
             result = (result | data[i]) << 8;
     return result;
-}
+}*/
 
 void sprintCANPacket(CANPacket* packet, char* buffer) {
     uint8 pri = (packet->id & 0x400) >> 10;
     uint8 dg = (packet->id & 0x3C0) >> 6;
     uint8 sn = (packet->id & 0x03F) >> 0;
-
+    
     int len = sprintf(buffer, "%01X %02X %02X ", pri, dg, sn);
     for(int i = 0; i < packet->dlc; i++)
         len += sprintf(buffer+len," %02X", packet->data[i]);
@@ -137,11 +138,12 @@ void DebugPrint(char input) {
 void DisplayErrorCode(uint8_t code) {    
     ERROR_time_LED = 0;
     LED_ERR_Write(ON);
-    // LED_DBG_1_Write(ON);
+    
+    Print("check if code is entering this block");
     
     sprintf(txData, "Error %X\r\n", code);
     Print(txData);
-
+    
     switch(code)
     {
         case ERROR_INVALID_TTC:
@@ -158,12 +160,13 @@ void Initialize(void) {
     CyGlobalIntEnable; /* Enable global interrupts. LED arrays need this first */
     
     // address = getSerialAddress();
+    InitCAN(0x04, 0xF5);
     CAN_Start();
     CAN_1_Start();
     
     DBG_UART_Start();
     DBG_UART_1_Start();
- 
+    
     Print(txData);
     
     // LED_DBG_Write(0);
@@ -187,7 +190,7 @@ int main(void)
    
     Initialize();
     // toggle for debugging
-
+    
     // int err;
     // we can read CAN packets and pass it into uart first
     Print("format:\r\n");
@@ -199,12 +202,12 @@ int main(void)
     
     for(;;)
     {   
-        if (CAN_time_LED > 0) {
+        /*if (CAN_time_LED > 0) {
             LED_CAN_Write(0);
             CAN_time_LED--;
         } else {
             LED_CAN_Write(0);
-        }
+        }*/
         
         uint32 c = DBG_UART_UartGetChar();
         if (c) {
@@ -215,6 +218,9 @@ int main(void)
                     Print("sent ");
                     Print(uart_tx);
                     uart_rx_len = 0;
+                    LED_CAN_Write(0);
+                    CyDelay(10);
+                    LED_CAN_Write(1);
                 } else {
                     Print("Epic FAIL\r\n");
                 }
@@ -225,6 +231,7 @@ int main(void)
         }
         
         if (PollAndReceiveCANPacket(&can_rx) == ERROR_NONE) {
+            LED_CAN_Write(0);
             sprintCANPacket(&can_rx, uart_tx);
             Print(uart_tx);
         }
