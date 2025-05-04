@@ -179,14 +179,10 @@ void Initialize(void) {
 }
 
 
+
 int main(void)
 { 
     // intialize the two CAN blocks here
-    /*for (int i = 0; i < 10000; i++) {
-        LED_CAN_Write(0);
-        CyDelay(100);
-        LED_CAN_Write(1);
-    }*/
    
     Initialize();
     // toggle for debugging
@@ -202,12 +198,12 @@ int main(void)
     
     for(;;)
     {   
-        /*if (CAN_time_LED > 0) {
+        if (CAN_time_LED > 0) {
             LED_CAN_Write(0);
             CAN_time_LED--;
         } else {
             LED_CAN_Write(0);
-        }*/
+        }
         
         uint32 c = DBG_UART_UartGetChar();
         if (c) {
@@ -217,10 +213,6 @@ int main(void)
                     sprintCANPacket(&can_tx, uart_tx);
                     Print("sent ");
                     Print(uart_tx);
-                    uart_rx_len = 0;
-                    LED_CAN_Write(0);
-                    CyDelay(10);
-                    LED_CAN_Write(1);
                 } else {
                     Print("Epic FAIL\r\n");
                 }
@@ -230,11 +222,22 @@ int main(void)
             }
         }
         
-        if (PollAndReceiveCANPacket(&can_rx) == ERROR_NONE) {
-            LED_CAN_Write(0);
+        int rx_result = PollAndReceiveCANPacket(&can_rx);
+        if (rx_result == ERROR_NONE) {
+            
+            LED_CAN_Write(1); // Turn LED OFF (active low)
             sprintCANPacket(&can_rx, uart_tx);
             Print(uart_tx);
-        }
+            
+        } /*else {
+            // Periodically show error code (not on every loop to avoid flooding UART)
+            static uint32_t error_print_counter = 0;
+            if (error_print_counter++ % 100 == 0) { // Print every 100th error
+                sprintf(uart_tx, "CAN RX Error: 0x%02X\r\n", rx_result);
+                Print(uart_tx);
+            }
+        }*/
+        
         CyDelay(100);
     }
 }
