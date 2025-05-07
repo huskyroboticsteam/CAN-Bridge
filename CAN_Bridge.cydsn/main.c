@@ -178,9 +178,7 @@ void Initialize(void) {
     isr_Period_Reset_StartEx(Period_Reset_Handler);
 }
 
-
-
-int main(void)
+/*int main(void)
 { 
     // intialize the two CAN blocks here
    
@@ -236,9 +234,63 @@ int main(void)
                 sprintf(uart_tx, "CAN RX Error: 0x%02X\r\n", rx_result);
                 Print(uart_tx);
             }
-        }*/
+        }
         
         CyDelay(100);
     }
 }
+*/
+char odrivePacket[64];
+int main() {
+    CyGlobalIntEnable;
+
+    // initialize the CAN block
+    CAN_Start();           // PSoC-Designer name for the CAN Top-Level
+    CAN_1_Start();         // if you have a second instance
+    InitCAN();             // our helper: sets up mailbox 0, mask=0, IRQ, etc.
+
+    DBG_UART_Start();      // for debug prints
+    Print("CAN initialized\r\n");
+    
+    // now send a test command
+    CANPacket cmd;
+    cmd.id  = (0x04 << 4) | 0x0D;   // node_id=0x01 (axis 0), cmd_id=0x0D (Set Input Velocity)
+    cmd.dlc = 6;                    // ODrive velocity packets use 6 bytes
+    // fill 6‐byte little endian velocity, e.g. 10000 → 0x002710
+    int32_t velocity = 10000;
+    for (int i = 0; i < 4; ++i) {
+        cmd.data[i] = (velocity >> (8*i)) & 0xFF;
+    }
+    // two extra zero bytes
+    cmd.data[4] = 0; 
+    cmd.data[5] = 0;
+    
+    
+    
+    if (SendCANPacket(&cmd) == ERROR_NONE) {
+        int len = sprintf(odrivePacket, "ID=0x%03X DLC=%u DATA=", cmd.id, cmd.dlc);
+        // now append each data byte in hex
+        for (int i = 0; i < cmd.dlc; ++i) {
+            len += sprintf(odrivePacket + len, "%02X ", cmd.data[i]);
+        }
+        // print it out
+        Print(odrivePacket);
+        Print("\r\n");
+        Print("ODrive velocity command sent\r\n");
+    } else {
+        Print("Send error\r\n");
+    }
+
+    for(;;) {
+        // optionally poll for responses
+        if (PollAndReceiveCANPacket(&cmd) == ERROR_NONE) {
+            LED_CAN_1_Write(0);
+            sprintCANPacket(&cmd, uart_tx);
+            Print(uart_tx);
+            LED_CAN_1_Write(1);
+        }
+    }
+}
+
+
 /* [] END OF FILE */

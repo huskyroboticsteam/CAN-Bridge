@@ -17,8 +17,8 @@
 
 #include "CANPacket.h"
 
-
-void InitCAN(int deviceGroup, int deviceAddress);
+void InitCAN();
+// void InitCAN(int deviceGroup, int deviceAddress);
 
 //TODO: define constants for these error codes
 //Returns 0x0 for successful send

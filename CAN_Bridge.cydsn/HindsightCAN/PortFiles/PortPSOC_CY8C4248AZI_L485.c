@@ -37,6 +37,18 @@ CY_ISR_PROTO(CAN_FLAG_ISR);
 int deviceAddress;
 int deviceGroup;
 CAN_RX_CFG rxMailbox;
+
+void InitCAN() {
+  rxMailbox.rxmailbox = CAN_RX_MAILBOX_0;
+  rxMailbox.rxacr     = 0x00000000; // acceptance code
+  rxMailbox.rxamr     = 0xFFFFFFFF; // accept all IDs
+  CAN_RxBufConfig(&rxMailbox);
+  CAN_GlobalIntEnable();
+  CyIntSetVector(CAN_ISR_NUMBER, CAN_FLAG_ISR);
+}
+
+
+/*
 void InitCAN(int deviceGroupInput, int deviceAddressInput)
 {
     CAN_Start();//must name CAN Top Design block as "CAN"
@@ -71,6 +83,7 @@ void InitCAN(int deviceGroupInput, int deviceAddressInput)
     //CY_ISR_PROTO(CAN_FLAG_ISR);
     
 }
+*/
 int SendCANPacket(CANPacket *packetToSend)
 {
     if(!packetToSend) {return ERROR_NULL_POINTER;}
