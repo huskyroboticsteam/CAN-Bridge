@@ -265,8 +265,6 @@ int main() {
     cmd.data[4] = 0; 
     cmd.data[5] = 0;
     
-    
-    
     if (SendCANPacket(&cmd) == ERROR_NONE) {
         int len = sprintf(odrivePacket, "ID=0x%03X DLC=%u DATA=", cmd.id, cmd.dlc);
         // now append each data byte in hex
